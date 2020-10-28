@@ -2,111 +2,119 @@
 
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-import xml.etree.ElementTree as ET
-import string
-import csv
-import pandas as pd
-import re
 import numpy as np
-import ast
+import pandas as pd
+from sklearn.svm import LinearSVC, SVC
+from sklearn.model_selection import cross_val_score, train_test_split, KFold
+from sklearn.metrics import f1_score, accuracy_score, balanced_accuracy_score, roc_auc_score
+from sklearn.ensemble import VotingClassifier
+from sklearn.feature_selection import SelectKBest, f_regression
+from sklearn.pipeline import make_pipeline
+from navec import Navec
+from gensim.models import fasttext
+from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
+from tqdm import tqdm
+from nltk import word_tokenize
+from sklearn.metrics import plot_confusion_matrix
+import matplotlib.pyplot as plt
+
+def anova(model):
+    anova_filter = SelectKBest(f_regression, k=19)
+    anova_svm = make_pipeline(anova_filter, model)
+    return anova_svm
+
+def svm(kernel='rbf', C=10, gamma='scale'):
+    svc = SVC(kernel=kernel, class_weight='balanced', C=C, degree=5, tol=1e-5, gamma=gamma)
+    return svc
+
+def linear_svm():
+    svc = LinearSVC(C = 1, random_state=0, tol=1e-5, dual=False, fit_intercept=True, class_weight='balanced')
+    return svc
+
+def voting(models):
+    l = []
+    for i, m in enumerate(models):
+        l.append(("clf_{}".format(i), m))
+    eclf = VotingClassifier(estimators = l,
+                            voting = 'hard')
+    return eclf
+
+def adaboost():
+    adaboost = AdaBoostClassifier(
+                DecisionTreeClassifier(max_depth=50),
+                n_estimators=200, random_state=0)
+    return adaboost
+
+def train(model, data, y):
+    kf = KFold(n_splits=2, random_state=None)
+    scores = []
+    for train_index, val_index in kf.split(data):
+        X_train, X_val = data[train_index], data[val_index]
+        y_train, y_val = y[train_index], y[val_index]
+        scores.append(model.fit(X_train, y_train).score(X_val, y_val))
+    scores = np.array(scores)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+    return model, scores
+
+def test(model, x_test, y):
+    preds = model.predict(x_test)
+    score1 = f1_score(y, preds, average='micro')
+    score2 = f1_score(y, preds, average='macro')
+    accuracy = balanced_accuracy_score(y, preds)
+    roc_auc = roc_auc_score(y, preds)
+    print("Test metrics: [f1 score: micro - %0.3f, macro - %0.3f], \n"
+          " [accuracy: %0.3f], [roc_auc: %0.3f])" % (score1, score2, accuracy, roc_auc))
+    return preds, score1, score2
+
+def get_pre_learned():
+    i = 0
+    embs = []
+    words = []
+    with open(r'C:\Users\denis\Documents\180\model.txt', 'r', encoding='utf-8') as f:
+        text = f.readlines()
+        for row in text:
+            data = row.split(' ')
+            word = data[0].split('_')[0]
+
+            emb = [float(i) for i in data[1:]]
+            words.append(word)
+            embs.append(emb)
+    return words, embs
 
 
-def get_file_root(pth=''):
+def get_fasttext(df, pre_words, pre_embs):
+    embs = []
 
+    words = np.array(df['word'].values).reshape(df.shape[0], 1)
 
-    root = ET.parse(pth).getroot()
-    return root
+    model = fasttext.FastText(words, size=100, window=2, min_count=0)
+    for word in tqdm(df["word"].values, total=df.shape[0]):
+        if word in pre_words:
+            i = pre_words.index(word)
+            emb = pre_embs[i]
+        else:
+            emb = model.wv[word]
+        embs.append(emb)
+    embs = np.array(embs)
+    np.save('./fasttext.npy', embs)
+    return embs
 
-def parse_file():
-    root = get_file_root('data/veshnie-vody.Result.xml')
-    corpus = []
-    vectors = []
-    punctuation_regex = re.compile("[.?!;]")
-
-    for item in root.findall('./sentence'):
-        for idx, child in enumerate(item):
-            if child.tag == 'word' and 'original' in child.attrib:
-                vector_i = {}
-                corpus_i = {}
-                word = child.attrib['original']
-                rm_i = []
-                en_i = []
-                features_i = []
-                mfcc_i = []
-                if len(child.findall("./allophone"))>1:
-                    for letter in child.findall("./allophone"):
-                        letter_i = letter.attrib
-                        rm_i.append(letter_i["Rm"])
-                        en_i.append(letter_i["En"])
-                        features_i.append(letter_i["features"])
-                        mfcc_i.append(letter_i["mfcc"])
-
-                    vector_i['word'] = word[:-1] if len(punctuation_regex.findall(word[:-1]))>0 else word
-                    vector_i['Rm'] = rm_i
-                    vector_i['En'] = en_i
-                    vector_i["features"] = features_i
-                    vector_i["mfcc"] = mfcc_i
-
-                    corpus_i["word"] = word[:-1] if len(punctuation_regex.findall(word[:-1]))>0 else word
-
-                    if len(punctuation_regex.findall(word))>0:
-                        ispunct = 1
-                        punct = word[-1]
-                    else:
-                        ispunct = 0
-                        punct = 'a'
-
-                    vector_i['ispunctuation'] = ispunct
-                    vector_i['punct'] = punct
-                    corpus_i['ispunctuation'] = ispunct
-                    corpus_i['punct'] = punct
-                    corpus.append(corpus_i)
-                    vectors.append(vector_i)
-    return corpus, vectors
-
-def savetoCSV(newsitems, filename, fields):
-    # specifying the fields for csv file
-
-    # writing to csv file
-    with open(filename, 'w') as csvfile:
-        # creating a csv dict writer object
-        writer = csv.DictWriter(csvfile, fieldnames=fields)
-
-        # writing headers (field names)
-        writer.writeheader()
-
-        # writing data rows
-        writer.writerows(newsitems)
-    # Press the green button in the gutter to run the script.
-def convert_feats_to_tensor(arr, pth):
-    rm = arr
-    rm = [ast.literal_eval(rm_i) for rm_i in rm]
-    rms_padded = []
-    max_rm = max([len(l) for l in rm])
-    for i in rm:
-        pad_len = max_rm - len(i)
-        padded = [int(ii) for ii in i] + [0] * pad_len
-        rms_padded.append(padded)
-    np.save(pth, np.array(rms_padded))
 
 if __name__ == '__main__':
-    corpus, vectors = parse_file()
-    # savetoCSV(corpus, './data/corpus.csv', list(corpus[0].keys()))
-    # savetoCSV(vectors, './data/vectors.csv', list(vectors[0].keys()))
-
-    df2 = pd.read_csv('./data/vectors.csv', encoding='latin-1')
-    features = []
-    lens = []
-    for row in df2["features"].values:
-        l = [[re.sub('\D', '', i) for i in feat[1:-1].split("|") if re.sub('\D', '', i)!=''] for feat in row.split(", ")]
-        lens.append(len(l))
-        features.append(l)
-    features = np.array(features)
-    # np.save("./features.npy", features)
-    vectors = pd.read_csv('./data/vectors.csv', encoding='latin-1')
-    convert_feats_to_tensor(vectors["Rm"], "./rms.npy")
-
-    print(min(lens), max(lens), np.mean(lens))
-
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+    corpus = pd.read_csv('./data/corpus.csv')
+    vectors = pd.read_csv('./data/vectors.csv')
+    y = corpus['ispunctuation'].values
+    features = np.load("./features.npy", allow_pickle=True)
+    feats = np.load('./word2vec.npy')
+    rms = np.load('./rms.npy')
+    X_train, X_test, y_train, y_test = train_test_split(rms, y, test_size=0.1, random_state=42)
+    # model = svm(kernel='rbf')
+    # model2 = svm(kernel='rbf', C=1, gamma='auto')
+    # model3 = svm(kernel='poly')
+    # model4 = voting([model, model2, model3])
+    adaboost_m = adaboost()
+    model, scores = train(adaboost_m, X_train, y_train)
+    preds, score1, score2 = test(adaboost_m, X_test, y_test)
+    print(adaboost_m.get_params())
+    #get_word2vec(vectors)
