@@ -67,34 +67,34 @@ def parse_file(path_file):
                             v = 0
                         vowel.append(v)
 
-            words.append(word)
-            afters.append(after)
-            befores.append(before)
-            lengths.append(length)
-            forms.append(form)
-            genesyss.append(genesys)
-            subpart_of_speechs.append(subpart_of_speech)
-            semantics2s.append(semantics2)
-            semantics1s.append(semantics1)
-            reducts.append(reduct)
-            upper_cases.append(upper_case)
-            vowels.append(vowel)
+                words.append(word)
+                afters.append(after)
+                befores.append(before)
+                lengths.append(length)
+                forms.append(form)
+                genesyss.append(genesys)
+                subpart_of_speechs.append(subpart_of_speech)
+                semantics2s.append(semantics2)
+                semantics1s.append(semantics1)
+                reducts.append(reduct)
+                upper_cases.append(upper_case)
+                vowels.append(vowel)
 
 
-            [PunktBeg, PunktEnd, EmphBeg, EmphEnd] = [None]*4
-            if child.tag == 'content':
-                if 'PunktBeg' in child.attrib:
-                    PunktBeg = child.attrib['PunktBeg']
-                elif 'PunktEnd' in child.attrib:
-                    PunktEnd = child.attrib['PunktEnd']
-                elif 'EmphBeg' in child.attrib:
-                    EmphBeg = child.attrib['EmphBeg']
-                elif 'EmphEnd' in child.attrib:
-                    EmphBeg = child.attrib['EmphEnd']
-            PunktBegs.append(PunktBeg)
-            PunktEnds.append(PunktEnd)
-            EmphBegs.append(EmphBeg)
-            EmphEnds.append(EmphEnd)
+                [PunktBeg, PunktEnd, EmphBeg, EmphEnd] = [None]*4
+                if item[idx-1].tag == 'content':
+                    if 'PunktBeg' in child.attrib:
+                        PunktBeg = child.attrib['PunktBeg']
+                    elif 'PunktEnd' in child.attrib:
+                        PunktEnd = child.attrib['PunktEnd']
+                    elif 'EmphBeg' in child.attrib:
+                        EmphBeg = child.attrib['EmphBeg']
+                    elif 'EmphEnd' in child.attrib:
+                        EmphBeg = child.attrib['EmphEnd']
+                PunktBegs.append(PunktBeg)
+                PunktEnds.append(PunktEnd)
+                EmphBegs.append(EmphBeg)
+                EmphEnds.append(EmphEnd)
 
 
 
@@ -170,7 +170,7 @@ def convert_feats_to_tensor(arr, pth):
     np.save(pth, np.array(rms_padded))
 
 def process(path_file):
-    corpus, vectors = parse_file(path_file)
+    parse_file(path_file)
     # savetoCSV(corpus, './data/corpus.csv', list(corpus[0].keys()))
     # savetoCSV(vectors, './data/vectors.csv', list(vectors[0].keys()))
     #
