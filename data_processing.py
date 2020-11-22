@@ -141,5 +141,5 @@ def process(path_file):
 
 
 if __name__ == "__main__":
-    path_file = r'C:\Users\denis\PycharmProjects\TTs_for_STC\data\gieroi_nashiegho_vriemieni.Result.xml'
+    path_file = r'C:\Users\denis\PycharmProjects\TTs_for_STC\data\Bible.Result.xml'
     process(path_file)

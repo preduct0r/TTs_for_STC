@@ -28,43 +28,64 @@ def train(model, data, y):
     kf = KFold(n_splits=3, random_state=None)
     scores = []
     for train_index, val_index in kf.split(data):
-        X_train, X_val = data[train_index], data[val_index]
-        y_train, y_val = y[train_index], y[val_index]
+        X_train, X_val = data.iloc[train_index,:].values, data.iloc[val_index,:].values
+        y_train, y_val = np.array(y)[train_index], np.array(y)[val_index]
+        model.fit(X_train, y_train)
         scores.append(model.fit(X_train, y_train).score(X_val, y_val))
     scores = np.array(scores)
     print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
     return model, scores
 
-def test_model(model, x_test, y):
+def model_x(model, x_test, y):
     preds = model.predict(x_test)
     score1 = f1_score(y, preds, average='micro')
     score2 = f1_score(y, preds, average='macro')
     accuracy = balanced_accuracy_score(y, preds)
-    roc_auc = roc_auc_score(y, preds)
-    print("Test metrics: [f1 score: micro - %0.3f, macro - %0.3f], \n"
-          " [accuracy: %0.3f], [roc_auc: %0.3f])" % (score1, score2, accuracy, roc_auc))
+    # roc_auc = roc_auc_score(y, preds)
+    # print("Test metrics: [f1 score: micro - %0.3f, macro - %0.3f], \n"
+    #       " [accuracy: %0.3f], [roc_auc: %0.3f])" % (score1, score2, accuracy, roc_auc))
     return preds, score1, score2
 
 
 if __name__ == '__main__':
     features_path = r'C:\Users\denis\PycharmProjects\TTs_for_STC\data\features.csv'
     df = pd.read_csv(features_path)
-    df.fillna(-1)
+    df = df.fillna(-1)
 
-    # first task
-    y1 = df['pause'] != -1
-    y1 = [int(x) for x in y1]
-    X_train, X_test, y_train, y_test = train_test_split(df.drop(columns=['intonation', 'pause', 'vowel', 'reduct']), y1, test_size=0.1, random_state=42)
-    # model = svm(kernel='rbf')
-    # model2 = svm(kernel='rbf', C=1, gamma='auto')
-    # model3 = svm(kernel='poly')
-    # model4 = voting([model, model2, model3])
-    rf_model = rf()
-    model, scores = train(rf_model, X_train, y_train)
-    preds, score1, score2 = test_model(model, X_test, y_test)
-    print(scores)
-    print(score1)
-    print(score2)
+    # FIRST TASK
+    y = df['pause'] != -1
+    y1 = [int(x) for x in y]
+    X_train, X_test, y_train, y_test = train_test_split(df.drop(columns=['intonation', 'pause', 'vowel', 'reduct', 'word']), y1, test_size=0.1, random_state=42)
+
+    rf = rf()
+    model, scores = train(rf, X_train, y_train)
+    preds, score1, score2 = model_x(model, X_test, y_test)
+    print("Binary classificator results: accuracy: {}, f1-macro: {}, f1-micro: {}".format(np.mean(scores), score1, score2))
+
+    # SECOND TASK
+    dict_target = {-1: -1, 'weak': 0, 'long': 1, 'x-long': 2, 'spelling': 3}
+    y2 = df.pause.map(lambda x: dict_target[x])
+    X_train, X_test, y_train, y_test = train_test_split(
+        df.drop(columns=['intonation', 'pause', 'vowel', 'reduct', 'word']), y2, test_size=0.1, random_state=42)
+
+    model, scores = train(rf, X_train, y_train)
+    preds, score1, score2 = model_x(model, X_test, y_test)
+    print("Multi-class classificator results: accuracy: {}, f1-macro: {}, f1-micro: {}".format(np.mean(scores), score1,
+                                                                                          score2))
+
+    # THIRD TASK
+    X_train, X_test, y_train, y_test = train_test_split(
+        df.drop(columns=['intonation', 'pause', 'vowel', 'reduct', 'word']), df.intonation, test_size=0.1, random_state=42)
+
+    model, scores = train(rf, X_train, y_train)
+    preds, score1, score2 = model_x(model, X_test, y_test)
+    print("intonation classificaton results: accuracy: {}, f1-macro: {}, f1-micro: {}".format(np.mean(scores), score1,
+                                                                                          score2))
+
     print(model.get_params())
-    #get_word2vec(vectors)
+
+
+
+
+
 
