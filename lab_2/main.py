@@ -10,8 +10,7 @@ from sklearn.metrics import f1_score, accuracy_score, balanced_accuracy_score, r
 from sklearn.ensemble import VotingClassifier
 from sklearn.feature_selection import SelectKBest, f_regression
 from sklearn.pipeline import make_pipeline
-from navec import Navec
-from gensim.models import fasttext
+
 from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 from tqdm import tqdm
