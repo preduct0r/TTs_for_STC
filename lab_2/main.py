@@ -48,7 +48,7 @@ def model_x(model, x_test, y):
 
 
 if __name__ == '__main__':
-    features_path = r'C:\Users\denis\PycharmProjects\TTs_for_STC\data\features.csv'
+    features_path = r'/data/features.csv'
     df = pd.read_csv(features_path)
     df = df.fillna(-1)
 
