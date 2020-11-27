@@ -151,11 +151,11 @@ def parse_file(path_file):
         df.loc[:, ['before', 'after', 'length', 'vowel']])
 
 
-    df.to_csv(r'C:\Users\denis\PycharmProjects\TTs_for_STC\data\features3.csv', index=False)
+    df.to_csv(r'C:\Users\denis\PycharmProjects\TTs_for_STC\data\features_for_test.csv', index=False)
 
 
 
 
 if __name__ == "__main__":
-    path_file = r'C:\Users\denis\PycharmProjects\TTs_for_STC\data\gieroi_nashiegho_vriemieni.Result.xml'
+    path_file = r'C:\Users\denis\PycharmProjects\TTs_for_STC\data\Bible.Result.xml'
     parse_file(path_file)

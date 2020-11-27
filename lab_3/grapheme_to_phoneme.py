@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import cross_val_score, train_test_split, KFold
 from sklearn.metrics import f1_score, accuracy_score, balanced_accuracy_score, roc_auc_score
+import pickle
 
 import torch
 import torch.nn as nn
@@ -30,9 +31,16 @@ if __name__ == '__main__':
     int2phoneme = dict(enumerate(set(df.phoneme)))
     phoneme2int = {ch: ii for ii, ch in int2phoneme.items()}
 
-    df['int_char'] = [char2int[x] for x in df.grapheme]
 
-    X = pd.get_dummies(df.drop(columns=['word', 'phoneme', 'grapheme', 'allophone', 'stressed_vowel'])).values
+    # готовим данные для загрузки в модель, определяющую фонемы по графемам
+    df['int_char'] = [char2int[x] for x in df.grapheme]
+    to_convert = ['subpart_of_speech', 'genesys', 'semantics1', 'semantics2', 'form', 'before_pause', 'after_pause',
+                  'before_vowel', 'after_vowel', 'stressed_vowel', 'word', 'grapheme', 'phoneme', 'allophone', 'int_char']
+    for col in to_convert:
+        df[col] = df[col].astype('category')
+    X = df.drop(columns=['word', 'phoneme', 'grapheme', 'allophone', 'stressed_vowel'])
+
+    X = pd.get_dummies(X).values
     # X = pd.get_dummies(df.loc[:, ['int_char', 'stressed_vowel']]).values
     y = [phoneme2int[x] for x in df.phoneme]
 
@@ -45,12 +53,13 @@ if __name__ == '__main__':
     model = CharRNN(X.shape[1], len(int2phoneme))
 
     criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=0.1)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=0.001)
     early_stopping = EarlyStopping()
 
     model.to(device)
     min_loss = 1000
 
+    #собственно тренируем модель
     for epoch in range(config.num_epochs):
         h = model.init_hidden(config.batch_size)
         model.train()

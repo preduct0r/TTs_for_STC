@@ -48,7 +48,7 @@ class CharRNN(nn.Module):
 
         out, hidden = self.lstm(x, hidden)
 
-        # out = self.dropout(r_output)
+        out = self.dropout(out)
 
         # Stack up LSTM outputs using view
         # you may need to use contiguous to reshape the output
