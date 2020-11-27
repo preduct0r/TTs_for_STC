@@ -4,20 +4,10 @@
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import numpy as np
 import pandas as pd
-from sklearn.svm import LinearSVC, SVC
 from sklearn.model_selection import cross_val_score, train_test_split, KFold
 from sklearn.metrics import f1_score, accuracy_score, balanced_accuracy_score, roc_auc_score
-from sklearn.ensemble import VotingClassifier
-from sklearn.feature_selection import SelectKBest, f_regression
-from sklearn.pipeline import make_pipeline
-from navec import Navec
-from gensim.models import fasttext
+
 from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
-from sklearn.tree import DecisionTreeClassifier
-from tqdm import tqdm
-from nltk import word_tokenize
-from sklearn.metrics import plot_confusion_matrix
-import matplotlib.pyplot as plt
 
 def rf():
     classifier = RandomForestClassifier(max_depth=50,

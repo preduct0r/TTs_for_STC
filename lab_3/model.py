@@ -26,7 +26,7 @@ else:
 
 class CharRNN(nn.Module):
 
-    def __init__(self, input_size, output_size, hidden_size=612, n_layers=2,
+    def __init__(self, input_size, output_size, hidden_size=256, n_layers=1,
                  drop_prob=0.5):
         super().__init__()
         self.hidden_size = hidden_size
@@ -46,9 +46,9 @@ class CharRNN(nn.Module):
         ''' Forward pass through the network.
             These inputs are x, and the hidden/cell state `hidden`. '''
 
-        r_output, hidden = self.lstm(x, hidden)
+        out, hidden = self.lstm(x, hidden)
 
-        out = self.dropout(r_output)
+        # out = self.dropout(r_output)
 
         # Stack up LSTM outputs using view
         # you may need to use contiguous to reshape the output
@@ -152,7 +152,7 @@ class BalancedBatchSampler(Sampler):
 
 
 class EarlyStopping():
-    def __init__(self, patience=5, min_percent_gain=0.005):
+    def __init__(self, patience=5, min_percent_gain=0.01):
         self.patience = patience
         self.loss_list = []
         self.min_percent_gain = min_percent_gain / 100.
@@ -166,7 +166,7 @@ class EarlyStopping():
         if len(self.loss_list) == 1:
             return False
         gain = (max(self.loss_list) - min(self.loss_list)) / max(self.loss_list)
-        print("Loss gain: {}%".format(round(100 * gain, 2)))
+        # print("Loss gain: {}%".format(round(100 * gain, 2)))
         if gain < self.min_percent_gain:
             return True
         else:

@@ -19,16 +19,10 @@ else:
 
 
 if __name__ == '__main__':
-    config = Config(lr=0.000001, batch_size=16384, num_epochs=100)
+    config = Config(lr=2e-5, batch_size=16000, num_epochs=100)
 
     path_file = r'C:\Users\denis\PycharmProjects\TTs_for_STC\data\features3.csv'
     df = pd.read_csv(path_file)
-    df = df.fillna(-1)
-    to_convert = ['subpart_of_speech', 'genesys', 'semantics1', 'semantics2', 'form', 'before_pause', 'after_pause',
-                  'before_vowel', 'after_vowel']
-    for col in to_convert:
-        df[col] = df[col].astype('category')
-
 
     int2char = dict(enumerate(set(df.grapheme)))
     char2int = {ch: ii for ii, ch in int2char.items()}
@@ -38,10 +32,11 @@ if __name__ == '__main__':
 
     df['int_char'] = [char2int[x] for x in df.grapheme]
 
-    X = pd.get_dummies(df.drop(columns=['word', 'grapheme', 'phoneme', 'allophone'])).values
+    X = pd.get_dummies(df.drop(columns=['word', 'phoneme', 'grapheme', 'allophone', 'stressed_vowel'])).values
+    # X = pd.get_dummies(df.loc[:, ['int_char', 'stressed_vowel']]).values
     y = [phoneme2int[x] for x in df.phoneme]
 
-    x_train, x_val, y_train, y_val = train_test_split(X, y, test_size=0.1, random_state=42)
+    x_train, x_val, y_train, y_val = train_test_split(X, y, test_size=0.1)
 
     batcher_train = DataLoader(My_Dataset(x_train, y_train), batch_size=config.batch_size,
                                sampler=BalancedBatchSampler(My_Dataset(x_train, y_train), y_train))
@@ -50,7 +45,7 @@ if __name__ == '__main__':
     model = CharRNN(X.shape[1], len(int2phoneme))
 
     criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=0.1)
     early_stopping = EarlyStopping()
 
     model.to(device)
@@ -59,6 +54,9 @@ if __name__ == '__main__':
     for epoch in range(config.num_epochs):
         h = model.init_hidden(config.batch_size)
         model.train()
+        correct = 0.
+        total = 0.
+        iter_loss = 0.
         for i, (items, classes) in enumerate(batcher_train):
             if classes.shape[0] != config.batch_size:
                 break
@@ -71,29 +69,24 @@ if __name__ == '__main__':
             outputs, h = model(items, h)
 
             loss = criterion(outputs, classes.long())
-            # iter_loss += loss.item()
+            iter_loss += loss.item()
             loss.backward()
             optimizer.step()
 
             _, predicted = torch.max(outputs.data, 1)
-            # correct += (predicted == classes.data.long()).sum()
-            #
-            # f_scores += f1_score(predicted.cpu().numpy(), classes.data.cpu().numpy(), average='macro')
-            #
-            # iterations += 1
+            correct += (predicted == classes.data.long()).sum().item()
+            total+=1
 
             torch.cuda.empty_cache()
 
-        # train_loss.append(iter_loss / iterations)
-        # train_fscore.append(f_scores / iterations)
+        print('Iter {}, Train loss: {}, accuracy: {}'.format(epoch, np.round(iter_loss/total, 4), np.round(correct/total/config.batch_size, 2)))
 
         ############################
         # Validate
         ############################
-        iter_loss = 0.0
-        # correct = 0
-        # f_scores = 0
-        # iterations = 0
+        correct = 0.
+        total = 0.
+        iter_loss = 0.
 
         model.eval()  # Put the network into evaluate mode
         val_h = model.init_hidden(config.batch_size)
@@ -108,35 +101,22 @@ if __name__ == '__main__':
             val_h = tuple([each.data for each in val_h])
             outputs, val_h = model(items, val_h)
             loss = criterion(outputs, classes.long())
-            iter_loss += loss.item()/len(batcher_val)
+            iter_loss += loss.item()
 
-            # _, predicted = torch.max(outputs.data, 1)
-            # correct += (predicted == classes.data.long()).sum()
-            #
-            # f_scores += f1_score(predicted.cpu().numpy(), classes.data.cpu().numpy(), average='macro')
-            #
-            # iterations += 1
+            _, predicted = torch.max(outputs.data, 1)
+            correct += (predicted == classes.data.long()).sum().item()
+            total += 1
 
-        # valid_loss.append(iter_loss / iterations)
-        # valid_fscore.append(f_scores / iterations)
+        print('          Val loss: {}, accuracy: {}\n'.format(np.round(iter_loss/total, 4), np.round(correct/total/config.batch_size, 2)))
+
         early_stopping.update_loss(iter_loss)
         if early_stopping.stop_training():
             torch.save(model, r"C:\Users\denis\Documents\TTS_saved_model\net.pb")
             break
 
-        print(iter_loss)
 
 
-        # if valid_loss[-1] < min_loss:
-        #     torch.save(net, os.path.join(experiments_path, "net.pb".format(n_classes)))
-        #     min_loss = valid_loss[-1]
-        #
-        # print('Epoch %d/%d, Tr Loss: %.4f, Tr Fscore: %.4f, Val Loss: %.4f, Val Fscore: %.4f'
-        #       % (epoch + 1, config.num_epochs, train_loss[-1], train_fscore[-1],
-        #          valid_loss[-1], valid_fscore[-1]))
-        #
-        # with open(os.path.join(experiments_path, "loss_track.pkl"), 'wb') as f:
-        #     pickle.dump([train_loss, train_fscore, valid_loss, valid_fscore], f)
+
 
 
 

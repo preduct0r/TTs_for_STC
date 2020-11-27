@@ -3,6 +3,7 @@ import string
 import pandas as pd
 import re
 import numpy as np
+from sklearn import preprocessing
 
 
 
@@ -14,8 +15,8 @@ def parse_file(path_file):
     root = get_file_root(path_file)
 
     words, subpart_of_speechs, genesyss, semantics1s, semantics2s, forms, vowels, befores, afters, lengths, \
-            before_pauses, after_pauses, graphemes, phonemes, allophones, before_vowels, after_vowels = [], [], [], [], \
-                                                                        [], [], [], [], [], [], [], [], [], [], [], [], []
+            before_pauses, after_pauses, graphemes, phonemes, allophones, before_vowels, after_vowels, stressed_vowels = [], [], [], [], \
+                                                                        [], [], [], [], [], [], [], [], [], [], [], [], [], []
 
     for item in root.findall('./sentence'):
         num_word = 0
@@ -26,7 +27,7 @@ def parse_file(path_file):
                 amount += 1
         for idx, child in enumerate(item):
             [word, subpart_of_speech, genesys, semantics1, semantics2, form, vowel, before, after, length,
-            before_pause, after_pause] = [None]*12
+            before_pause, after_pause, stressed_vowel] = [None]*13
             if child.tag == 'word':
                 num_word += 1
 
@@ -61,7 +62,7 @@ def parse_file(path_file):
                         form = i.attrib['form']
                     break
 
-
+                # Признаки паузы до и после слова
                 before_pause, after_pause = 0, 0
                 if item[idx - 2].tag == 'pause':
                     before_pause = 1
@@ -69,18 +70,25 @@ def parse_file(path_file):
                 if item[idx + 2].tag == 'pause':
                     after_pause = 1
 
-
+                # Признаки наличия гласной до и после текущей графемы плюс её ударность
                 vowel = 0
                 constants_vowels = []
                 for i in child.findall('./letter'):
                     if 'flag' in i.attrib:
-                        if i.attrib['flag'] in ['4','8','9']:
+
+                        if i.attrib['flag'] in ['25', '26', '9', '10']: # ударная глассная
+                            stressed_vowel = 1
+                        else:
+                            stressed_vowel = 0
+
+                        if i.attrib['flag'] in ['4','8','9', '25', '26', '10']:
                             vowel += 1
                             constants_vowels.append(1)
                         else:
                             constants_vowels.append(0)
                     else:
                         constants_vowels.append(0)
+                        stressed_vowel = 0
 
 
                 for idx, letter, phoneme, allophone in zip(range(len(constants_vowels)), child.findall('./letter'), child.findall('./phoneme'), child.findall('./allophone')):
@@ -118,6 +126,7 @@ def parse_file(path_file):
                     semantics2s.append(semantics2)
                     semantics1s.append(semantics1)
                     vowels.append(vowel)
+                    stressed_vowels.append(stressed_vowel)
 
 
 
@@ -126,11 +135,21 @@ def parse_file(path_file):
 
 
     df = pd.DataFrame(data = [words, subpart_of_speechs, genesyss, semantics1s, semantics2s, forms, vowels, befores, afters, lengths,
-            before_pauses, after_pauses, graphemes, phonemes, allophones, before_vowels, after_vowels])
+            before_pauses, after_pauses, graphemes, phonemes, allophones, before_vowels, after_vowels, stressed_vowels])
 
     df = df.transpose()
     df.columns = ['word', 'subpart_of_speech', 'genesys', 'semantics1', 'semantics2', 'form', 'vowel', 'before', 'after', 'length',
-                  'before_pause', 'after_pause', 'grapheme', 'phoneme', 'allophone', 'before_vowel', 'after_vowel']
+                  'before_pause', 'after_pause', 'grapheme', 'phoneme', 'allophone', 'before_vowel', 'after_vowel', 'stressed_vowel']
+
+    df = df.fillna(-1)
+    to_convert = ['subpart_of_speech', 'genesys', 'semantics1', 'semantics2', 'form', 'before_pause', 'after_pause',
+                  'before_vowel', 'after_vowel', 'stressed_vowel', 'word', 'grapheme', 'phoneme', 'allophone']
+    for col in to_convert:
+        df[col] = df[col].astype('category')
+    min_max_scaler = preprocessing.MinMaxScaler()
+    df.loc[:, ['before', 'after', 'length', 'vowel']] = min_max_scaler.fit_transform(
+        df.loc[:, ['before', 'after', 'length', 'vowel']])
+
 
     df.to_csv(r'C:\Users\denis\PycharmProjects\TTs_for_STC\data\features3.csv', index=False)
 
