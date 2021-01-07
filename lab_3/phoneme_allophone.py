@@ -105,7 +105,7 @@ if __name__ == '__main__':
 
     x_2_val, y_2_val = x_2_val.iloc[:64000,:], y_2_val[:64000]
     x_2_val['int_phoneme'] = predicted_phonemes
-    x_2_val['int_phoneme'].astype('category')
+    x_2_val['int_phoneme'] = x_2_val['int_phoneme'].astype('category')
 
     preds, score1, score2 = model_x(clf, pd.get_dummies(x_2_val).values, y_2_val)
 
