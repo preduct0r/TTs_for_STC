@@ -90,23 +90,46 @@ def parse_file(path_file):
 
 
 
+    en1, en2, en3 = [], [], []
+    for row in ens:
+        en1.append(row[0])
+        en2.append(row[1])
+        en3.append(row[2])
+
+    c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12 = [],[],[],[],[],[],[],[],[],[],[],[]
+    for row in mfccs:
+        c1.append(row[0])
+        c2.append(row[1])
+        c3.append(row[2])
+        c4.append(row[3])
+        c5.append(row[4])
+        c6.append(row[5])
+        c7.append(row[6])
+        c8.append(row[7])
+        c9.append(row[8])
+        c10.append(row[9])
+        c11.append(row[10])
+        c12.append(row[11])
 
 
     df = pd.DataFrame(data = [words, befores, afters, pauses, pause_types, phonemes, phonemes_word,
-                              phonemes_sent, allophones, otns, ens, mfccs])
+                              phonemes_sent, allophones, otns, en1, en2, en3, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12])
 
     df = df.transpose()
     df.columns = ['word', 'before', 'after', 'pause', 'pause_type', 'phoneme', 'phoneme_word',
-                  'phoneme_sent', 'allophone', 'otn', 'en', 'mfcc']
+                  'phoneme_sent', 'allophone', 'otn', 'en1', 'en2', 'en3', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6',
+                  'c7', 'c8', 'c9', 'c10', 'c11', 'c12']
+
 
     df = df.fillna(-1)
     to_convert = ['pause', 'pause_type', 'word', 'phoneme', 'allophone', 'otn']
     for col in to_convert:
         df[col] = df[col].astype('category')
 
+
     min_max_scaler = preprocessing.MinMaxScaler()
-    df.loc[:, ['before', 'after', 'phoneme_word', 'phoneme_sent']] = min_max_scaler.fit_transform(
-        df.loc[:, ['before', 'after', 'phoneme_word', 'phoneme_sent']])
+    df.loc[:, ['before', 'after', 'phoneme_word', 'phoneme_sent', 'en1', 'en2', 'en3']] = min_max_scaler.fit_transform(
+        df.loc[:, ['before', 'after', 'phoneme_word', 'phoneme_sent', 'en1', 'en2', 'en3']])
 
 
     df.to_csv(r'C:\Users\denis\PycharmProjects\TTs_for_STC\data\features_lab4.csv', index = False)
