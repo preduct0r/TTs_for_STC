@@ -37,6 +37,8 @@ df = pd.read_csv(r'C:\Users\denis\PycharmProjects\TTs_for_STC\data\features_lab4
 
 
 
+data = My_Dataset(pd.get_dummies(df.drop(columns=['word', 'phoneme', 'allophone'])).values.astype(np.float32))
+
 
 # Create loader with data, so that we can iterate over it
 data_loader = torch.utils.data.DataLoader(data, batch_size=100, shuffle=True)
@@ -44,10 +46,10 @@ data_loader = torch.utils.data.DataLoader(data, batch_size=100, shuffle=True)
 num_batches = len(data_loader)
 
 for epoch in range(num_epochs):
-    for n_batch, (real_batch,_) in enumerate(data_loader):
+    for n_batch, real_batch in enumerate(data_loader):
 
         # 1. Train Discriminator
-        real_data = Variable(images_to_vectors(real_batch))
+        real_data = Variable(real_batch)
         if torch.cuda.is_available(): real_data = real_data.cuda()
         # Generate fake data
         fake_data = generator(noise(real_data.size(0))).detach()
@@ -63,13 +65,13 @@ for epoch in range(num_epochs):
         # Log error
         logger.log(d_error, g_error, epoch, n_batch, num_batches)
 
-        # Display Progress
+        # # Display Progress
         if (n_batch) % 100 == 0:
-            display.clear_output(True)
-            # Display Images
-            test_images = vectors_to_images(generator(test_noise)).data.cpu()
-            logger.log_images(test_images, num_test_samples, epoch, n_batch, num_batches)
-            # Display status Logs
+        #     display.clear_output(True)
+        #     # Display Images
+        #     test_images = vectors_to_images(generator(test_noise)).data.cpu()
+        #     logger.log_images(test_images, num_test_samples, epoch, n_batch, num_batches)
+        #     # Display status Logs
             logger.display_status(
                 epoch, num_epochs, n_batch, num_batches,
                 d_error, g_error, d_pred_real, d_pred_fake
