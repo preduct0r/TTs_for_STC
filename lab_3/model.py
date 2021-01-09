@@ -152,7 +152,7 @@ class BalancedBatchSampler(Sampler):
 
 
 class EarlyStopping():
-    def __init__(self, patience=5, min_percent_gain=0.01):
+    def __init__(self, patience=3, min_percent_gain=0.1):
         self.patience = patience
         self.loss_list = []
         self.min_percent_gain = min_percent_gain / 100.

@@ -20,6 +20,19 @@ class My_Dataset(Dataset):
         return torch.FloatTensor(self.x[idx, :])
 
 
+class My_Dataset2(Dataset):
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def __len__(self):
+        return len(self.y)
+
+    def __getitem__(self, idx):
+        return torch.FloatTensor(self.x[idx, :]), self.y[idx]
+
+
+
 class DiscriminatorNet(torch.nn.Module):
     """
     A three hidden-layer discriminative neural network
@@ -180,4 +193,35 @@ def train_generator(optimizer, fake_data):
     # Return error
     return error
 
+
+class LinearNet(torch.nn.Module):
+    """
+    A three hidden-layer discriminative neural network
+    """
+
+    def __init__(self):
+        super(LinearNet, self).__init__()
+        n_features = 63
+        n_out = 12
+
+        self.hidden0 = nn.Sequential(
+            nn.Linear(n_features, 32),
+            nn.LeakyReLU(0.2),
+            nn.Dropout(0.3)
+        )
+        self.hidden1 = nn.Sequential(
+            nn.Linear(32, 16),
+            nn.LeakyReLU(0.2),
+            nn.Dropout(0.3)
+        )
+
+        self.out = nn.Sequential(
+            torch.nn.Linear(16, n_out),
+        )
+
+    def forward(self, x):
+        x = self.hidden0(x)
+        x = self.hidden1(x)
+        x = self.out(x)
+        return x
 

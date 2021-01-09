@@ -14,8 +14,8 @@ def get_file_root(pth=''):
 def parse_file(path_file):
     root = get_file_root(path_file)
 
-    words, befores, afters, pauses, pause_types, phonemes, phonemes_word, phonemes_sent, allophones, otns, ens, mfccs = \
-        [], [], [], [], [], [], [], [], [], [], [], []
+    words, befores, afters, pauses, pause_types, phonemes, phonemes_word, phonemes_sent, allophones, otns, ens, mfccs, features = \
+        [], [], [], [], [], [], [], [], [], [], [], [], []
 
     for item in root.findall('./sentence'):
         num_word = 0
@@ -65,6 +65,8 @@ def parse_file(path_file):
                         en = list(allophone.attrib['En'][1:-1].split('|'))
                     if 'mfcc' in allophone.attrib:
                         mfcc = list(allophone.attrib['mfcc'][1:-1].split('|'))
+                    if 'features' in allophone.attrib:
+                        feature = list(allophone.attrib['features'][1:-1].split('|'))
 
 
                     phonemes.append(f_phoneme)
@@ -77,6 +79,7 @@ def parse_file(path_file):
                     phonemes_sent.append(phoneme_sent)
                     phonemes_word.append(phoneme_word)
                     mfccs.append(mfcc)
+                    features.append(feature)
 
 
             [pause, pause_type] = [None] * 2
@@ -86,8 +89,6 @@ def parse_file(path_file):
 
             pauses.append(pause)
             pause_types.append(pause_type)
-
-
 
 
     en1, en2, en3 = [], [], []
@@ -112,6 +113,7 @@ def parse_file(path_file):
         c12.append(row[11])
 
 
+
     df = pd.DataFrame(data = [words, befores, afters, pauses, pause_types, phonemes, phonemes_word,
                               phonemes_sent, allophones, otns, en1, en2, en3, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12])
 
@@ -120,6 +122,11 @@ def parse_file(path_file):
                   'phoneme_sent', 'allophone', 'otn', 'en1', 'en2', 'en3', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6',
                   'c7', 'c8', 'c9', 'c10', 'c11', 'c12']
 
+    for i in range(48):
+        df['f{}'.format(i)] = None
+
+    rel_cols = ['f{}'.format(i) for i in range(48)]
+    df.loc[:,rel_cols] = np.vstack(features)
 
     df = df.fillna(-1)
     to_convert = ['pause', 'pause_type', 'word', 'phoneme', 'allophone', 'otn']
@@ -128,8 +135,8 @@ def parse_file(path_file):
 
 
     min_max_scaler = preprocessing.MinMaxScaler()
-    df.loc[:, ['before', 'after', 'phoneme_word', 'phoneme_sent', 'en1', 'en2', 'en3']] = min_max_scaler.fit_transform(
-        df.loc[:, ['before', 'after', 'phoneme_word', 'phoneme_sent', 'en1', 'en2', 'en3']])
+    df.loc[:, ['before', 'after', 'phoneme_word', 'phoneme_sent', 'en1', 'en2', 'en3']+rel_cols] = min_max_scaler.fit_transform(
+        df.loc[:, ['before', 'after', 'phoneme_word', 'phoneme_sent', 'en1', 'en2', 'en3']+rel_cols])
 
 
     df.to_csv(r'C:\Users\denis\PycharmProjects\TTs_for_STC\data\features_lab4.csv', index = False)

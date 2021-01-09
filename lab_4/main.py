@@ -1,82 +1,93 @@
 import pandas as pd
-
 import torch
 from torch import nn, optim
-from IPython import display
+import torch.cuda as cuda
 
+from sklearn.model_selection import cross_val_score, train_test_split, KFold
+
+from lab_3.model import *
 from lab_4.model import *
 
-
-discriminator = DiscriminatorNet()
-generator = GeneratorNet()
-
-
-if torch.cuda.is_available():
-    discriminator.cuda()
-    generator.cuda()
-
-
-# Optimizers
-d_optimizer = optim.Adam(discriminator.parameters(), lr=0.0002)
-g_optimizer = optim.Adam(generator.parameters(), lr=0.0002)
-
-# Loss function
-loss = nn.BCELoss()
-
-# Number of steps to apply to the discriminator
-d_steps = 1  # In Goodfellow et. al 2014 this variable is assigned to 1
-# Number of epochs
-num_epochs = 200
-
-num_test_samples = 16
-test_noise = noise(num_test_samples)
-
-logger = Logger(model_name='GAN', data_name='audio')
+config = Config(lr=2e-5, batch_size=100, num_epochs=100)
 
 df = pd.read_csv(r'C:\Users\denis\PycharmProjects\TTs_for_STC\data\features_lab4.csv')
 
+X = pd.get_dummies(df.drop(columns=['word', 'phoneme', 'allophone',
+                        'c1','c2','c3','c4','c5','c6','c7','c8','c9','c10','c11','c12'])).values.astype(np.float32)
+y = df.loc[:,['c1','c2','c3','c4','c5','c6','c7','c8','c9','c10','c11','c12']].values.astype(np.float32)
 
 
-data = My_Dataset(pd.get_dummies(df.drop(columns=['word', 'phoneme', 'allophone'])).values.astype(np.float32))
+x_train, x_val, y_train, y_val = train_test_split(X, y, test_size=0.1)
 
+batcher_train = DataLoader(My_Dataset2(x_train, y_train), batch_size=config.batch_size)
+batcher_val = DataLoader(My_Dataset2(x_val, y_val), batch_size=config.batch_size, shuffle=False)
 
-# Create loader with data, so that we can iterate over it
-data_loader = torch.utils.data.DataLoader(data, batch_size=100, shuffle=True)
-# Num batches
-num_batches = len(data_loader)
+model = LinearNet()
 
-for epoch in range(num_epochs):
-    for n_batch, real_batch in enumerate(data_loader):
+criterion = torch.nn.MSELoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=0.001)
+early_stopping = EarlyStopping()
 
-        # 1. Train Discriminator
-        real_data = Variable(real_batch)
-        if torch.cuda.is_available(): real_data = real_data.cuda()
-        # Generate fake data
-        fake_data = generator(noise(real_data.size(0))).detach()
-        # Train D
-        d_error, d_pred_real, d_pred_fake = train_discriminator(d_optimizer,
-                                                                real_data, fake_data)
+if cuda.is_available():
+    device = 'cuda'
+else:
+    device = 'cpu'
+# device = 'cpu'
+model.to(device)
+min_loss = 1000
 
-        # 2. Train Generator
-        # Generate fake data
-        fake_data = generator(noise(real_batch.size(0)))
-        # Train G
-        g_error = train_generator(g_optimizer, fake_data)
-        # Log error
-        logger.log(d_error, g_error, epoch, n_batch, num_batches)
+#собственно тренируем модель
+for epoch in range(config.num_epochs):
+    model.train()
+    correct = 0.
+    total = 0.
+    iter_loss = 0.
+    for i, (items, classes) in enumerate(batcher_train):
+        if classes.shape[0] != config.batch_size:
+            break
 
-        # # Display Progress
-        if (n_batch) % 100 == 0:
-        #     display.clear_output(True)
-        #     # Display Images
-        #     test_images = vectors_to_images(generator(test_noise)).data.cpu()
-        #     logger.log_images(test_images, num_test_samples, epoch, n_batch, num_batches)
-        #     # Display status Logs
-            logger.display_status(
-                epoch, num_epochs, n_batch, num_batches,
-                d_error, g_error, d_pred_real, d_pred_fake
-            )
-        # Model Checkpoints
-        logger.save_models(generator, discriminator, epoch)
+        items = items.to(device)
+        classes = classes.to(device)
+        optimizer.zero_grad()
 
+        outputs= model(items)
 
+        loss = criterion(outputs, classes)
+        iter_loss += loss.item()
+        loss.backward()
+        optimizer.step()
+
+        total+=1
+
+        torch.cuda.empty_cache()
+
+    print('Iter {}, Train loss: {}, accuracy: {}'.format(epoch, np.round(iter_loss/total, 4), np.round(correct/total/config.batch_size, 2)))
+
+    ############################
+    # Validate
+    ############################
+    correct = 0.
+    total = 0.
+    iter_loss = 0.
+
+    model.eval()  # Put the network into evaluate mode
+
+    for i, (items, classes) in enumerate(batcher_val):
+        if classes.shape[0] != config.batch_size:
+            break
+
+        items = items.to(device)
+        classes = classes.to(device)
+
+        outputs = model(items)
+        loss = criterion(outputs, classes)
+        iter_loss += loss.item()
+
+        total += 1
+
+    print('          Val loss: {}, accuracy: {}\n'.format(np.round(iter_loss/total, 4), np.round(correct/total/config.batch_size, 2)))
+
+    early_stopping.update_loss(iter_loss)
+    if early_stopping.stop_training():
+        torch.save(model, r"C:\Users\denis\Documents\TTS_saved_model\lab_4_net.pb")
+        break
